@@ -1,6 +1,8 @@
 ﻿using FidelityTest.DB;
 using FidelityTest.Model;
+using FidelityTest.Repository;
 using FidelityTest.ViewModel;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -9,27 +11,44 @@ using System.Linq;
 //[Route("Users/{accountId}")]
 namespace FidelityTest.Controllers
 {
+    //[Authorize]
     [Route("api/accounts")]
     [ApiController]
     public class AccountController : ControllerBase
     {
         public readonly AppDbContext _context;
-        public AccountController(AppDbContext context)
+        private readonly IJWTManagerRepository  _jWTManager;
+        public AccountController(AppDbContext context, IJWTManagerRepository jWTManager)
         {
             _context = context;
+            this._jWTManager = jWTManager;
         }
+        
+        [AllowAnonymous]
+        [HttpPost]
+        [Route("authenticate")]
+        public IActionResult Authenticate(UserAccess userdata) 
+        {
+            var token = _jWTManager.Authenticate(userdata);
+            if (token == null)
+            {
+                return Unauthorized();
+            }
+            return Ok(token);
+        }
+
 
         /// <summary>
         /// Get all account in DB
         /// </summary>
         /// <returns>List of accounts </returns>
-        [HttpGet]       
+       [HttpGet]       
         public IActionResult Accounts()
         {
             try
             {
-                var allAccount =  _context.Accounts.Where(x => x.Id != 0).ToList();
-               
+                var allAccount = _context.Accounts.Where(x => x.Id != 0).ToList();
+
                 if (allAccount.Count > 0)
                 {
                     return Ok(allAccount);
@@ -41,6 +60,9 @@ namespace FidelityTest.Controllers
                 throw ex;
             }
         }
+
+
+
 
 
         [HttpGet("{id}")]
@@ -81,7 +103,23 @@ namespace FidelityTest.Controllers
             }
 
             try
-            { 
+            {
+                var allAccounts = _context.Accounts.Where(x => x.Id != 0).ToList();
+                var checkName = allAccounts.Find(x => x
+                .CompanyName == account.CompanyName);
+                if (checkName != null)
+                {
+                    return BadRequest("Company name exist");
+                }
+
+                //foreach (var allAccount in allAccounts)
+                //{
+                //    if (allAccount.CompanyName == account.CompanyName)
+                //    {
+                //        return BadRequest("Company name exist");
+                //    }
+                //}
+
                 var accountInfo =  new Account()
                 {                   
                     CompanyName = account.CompanyName,
@@ -295,7 +333,21 @@ namespace FidelityTest.Controllers
             }
         }
 
-
     }
 }
 
+
+
+
+                            //[HttpGet]
+                            //[Route("{test}/user")]
+                            //public List<string> Get()
+                            //{
+                            //    var users = new List<string>
+                            //    {
+                            //        "Satinder Singh",
+                            //        "Amit Sarna",
+                            //        "Davin Jon"
+                            //    };
+                            //    return users;
+                            //}
